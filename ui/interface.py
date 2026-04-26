@@ -21,7 +21,7 @@ def InterfaceRoot():
     texto.pack()
     
     #Progressão
-    
+    progress = ctk.CTkProgressBar
     
     #Butoes
     btn_geral = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpeza Geral", font=("Bebas Neue", 20))
