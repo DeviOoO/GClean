@@ -1,7 +1,2 @@
-import os
-from pathlib import Path
-
-from ui import interface
-
-
-
+from ui.interface import InterfaceRoot
+InterfaceRoot()

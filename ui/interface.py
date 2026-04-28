@@ -1,38 +1,86 @@
 import tkinter as tk
 import customtkinter as ctk
+from utils.cleaner import *
+from core.thread import *
+import psutil
 
-
-ctk.set_appearance_mode("system")
+ctk.set_appearance_mode("netem")
 ctk.set_default_color_theme("dark-blue")
     
 root = ctk.CTk()
 root.title("GClenaer")
 root.geometry("600x900")
 
+uso = psutil.cpu_percent()
+ram = psutil.virtual_memory()
+
+frame = ctk.CTkFrame(master=root, corner_radius=(15), fg_color="#121316")
+cpu = ctk.CTkFrame(master=frame, corner_radius= 20, fg_color= "#66C0F4")
+progress = ctk.CTkProgressBar(master=frame, orientation="horizontal", corner_radius= 5, mode="determinate", width=500)
+
+
+
+def progressAtt(valor):
+    progress.set(valor)
+    root.update_idletasks()
+
+def LimpezaCache():
+    cachetempclean(progressAtt)
+    return 0
+
+def LimpezaNet():
+    SegundoPlano(netclean(progressAtt))
+    return 0
+
+def LimpezaCacheExec():
+    SegundoPlano(LimpezaCache)
+    return 0
+
+def LimpezaNetExec():
+    SegundoPlano(LimpezaNet)
+    return 0
+
+def Geral():
+    LimpezaCacheExec()
+    LimpezaNetExec()
+    return 0
+
+btn_geral = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpeza Geral", font=("Bebas Neue", 20), command=Geral)
+btn_cache = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpar apenas os Caches", font=("Bebas Neue", 20), command=LimpezaCacheExec)
+btn_net = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpar de Internet", font=("Bebas Neue", 20), command=LimpezaNetExec)
+
 def InterfaceRoot():
     
-    frame = ctk.CTkFrame(master=root, corner_radius=(15), fg_color="#121316")
+    #frame
     frame.pack(pady=10, padx=10, fill="both", expand=True)
     
     #cpu status
-    cpu = ctk.CTkFrame(master=frame, corner_radius= 20, fg_color= "#66C0F4")
     cpu.pack(pady=10, padx=10, fill= "both", expand=True)
-    texto = ctk.CTkLabel(master=cpu, text="CPU status", fg_color="transparent")
-    texto.pack()
+    textocpu = ctk.CTkLabel(master=cpu, text="CPU status", fg_color="transparent")
+    textocpu.pack()
+    
+    def atualizar_cpu():
+        uso = psutil.cpu_percent()
+        cpuinf.configure(text=f"Informações \n CPU: {uso}% \n Ram Total: {ram.total / (1024**3):.2f} GB \n Uso de Ram: {ram.used / (1024**3):.2f} GB")
+        root.after(1000, atualizar_cpu)  # roda de novo em 1s
+        
+    cpuinf = ctk.CTkLabel(master=cpu, text=f"Informações \n Uso da Cpu: {uso}%", fg_color="transparent")
+    cpuinf.pack()
+    atualizar_cpu()
     
     #Progressão
-    progress = ctk.CTkProgressBar
+    progress.pack()
+    progress.set(0)
     
     #Butoes
-    btn_geral = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpeza Geral", font=("Bebas Neue", 20))
     btn_geral.pack(pady=25, padx=20, fill="both", expand=True)
     
-    btn_syst = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpar apenas o sistema", font=("Bebas Neue", 20))
-    btn_syst.pack(pady=25, padx=20, fill="both", expand=True)
     
-    btn_cache = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpar apenas os Caches", font=("Bebas Neue", 20))
+    btn_net.pack(pady=25, padx=20, fill="both", expand=True)
+    
+    
     btn_cache.pack(pady=25, padx=20, fill="both", expand=True)
-    
+
     return 0
 
 InterfaceRoot()
