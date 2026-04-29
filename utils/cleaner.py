@@ -3,6 +3,14 @@ import os
 import shutil
 import time
 
+def DeleteArquivos(caminho):
+    if os.path.isfile(caminho):
+        os.remove(caminho)
+                
+    elif os.path.isdir(caminho):
+        shutil.rmtree(caminho)
+    return 0
+
 def netclean(progressAtt):
     
     # início
@@ -41,16 +49,38 @@ def netclean(progressAtt):
     return 0
 
 def cachetempclean(progressAtt):
+    #Diretorio Raiz
+    windir = os.getenv('SystemRoot')
+    prefetch_dir = os.path.join(windir, 'Prefetch')
+    win_temp_dir = os.path.join(windir, 'Temp')
+    temp = os.getenv('TEMP')
+    
     #Inicio
     progressAtt(0)
     
-    temp = os.getenv('TEMP')
+    #Checagem
     if temp is None:
         return 0
-    arquivos = os.listdir(temp)
-    print("Quantidade de arquivos: ", len(arquivos))
     
-    total_arquivos = len(arquivos)
+    if not os.path.exists(prefetch_dir):
+        return 0
+    
+    if not os.path.exists(win_temp_dir):
+        return 0
+    
+    try:
+        arq_prefetch = os.listdir(prefetch_dir)
+        arquivos = os.listdir(temp)
+        arq_wintemp = os.listdir(win_temp_dir)
+    except Exception:
+        arquivos = []
+        arq_prefetch = []
+        arq_wintemp = []
+    
+    total_arquivos = len(arquivos) + len(arq_prefetch) + len(arq_wintemp)
+    
+    print("Quantidade de arquivos: ", total_arquivos)
+    
     apagados = 0
     ignorados = 0
     
@@ -61,24 +91,36 @@ def cachetempclean(progressAtt):
     
     for item in arquivos:
         caminho = os.path.join(temp, item)
-        
         try:
-            if os.path.isfile(caminho):
-                #print(f"arquivo: {caminho}")
-                os.remove(caminho)
-                apagados += 1 
-                
-            elif os.path.isdir(caminho):
-                #print(f"pasta: {caminho}")
-                shutil.rmtree(caminho)
-                apagados += 1 
-               
+            DeleteArquivos(caminho)
+            apagados += 1 
+            
         except Exception:
             ignorados += 1
+        progresso = (apagados + ignorados) / total_arquivos
+        progressAtt(progresso)
         
+    for item in arq_prefetch:
+        caminho_temp = os.path.join(prefetch_dir, item)
+        try:
+            DeleteArquivos(caminho_temp)
+            apagados += 1 
+        except Exception:
+            ignorados += 1       
         progresso = (apagados + ignorados) / total_arquivos
         progressAtt(progresso)
 
+    for item in arq_wintemp:
+        caminho_wintemp = os.path.join(win_temp_dir, item)
+        try:
+            DeleteArquivos(caminho_wintemp)
+            apagados += 1
+        except Exception:
+            ignorados += 1
+        progresso = (apagados + ignorados) / total_arquivos
+        progressAtt(progresso)
+    
+    progressAtt(1)
     print("Número de arquivos apagados: ",apagados)
     print("Número de arquivos ignorados: ",ignorados)
     return apagados, ignorados, total_arquivos
