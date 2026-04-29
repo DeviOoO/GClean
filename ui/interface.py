@@ -4,9 +4,11 @@ from utils.cleaner import *
 from core.thread import *
 import psutil
 
-ctk.set_appearance_mode("netem")
+#Set de aparencia 
+ctk.set_appearance_mode("system")
 ctk.set_default_color_theme("dark-blue")
-    
+
+#Set de variaveis    
 root = ctk.CTk()
 root.title("GClenaer")
 root.geometry("600x900")
@@ -17,15 +19,23 @@ ram = psutil.virtual_memory()
 frame = ctk.CTkFrame(master=root, corner_radius=(15), fg_color="#121316")
 cpu = ctk.CTkFrame(master=frame, corner_radius= 20, fg_color= "#66C0F4")
 progress = ctk.CTkProgressBar(master=frame, orientation="horizontal", corner_radius= 5, mode="determinate", width=500)
+resultado_label = ctk.CTkLabel(master= cpu)
 
-
-
+#Criação de Funções
 def progressAtt(valor):
     progress.set(valor)
     root.update_idletasks()
+    
+def atualizar_resultado(apagados, ignorados, total):
+        resultado_label.pack()
+        resultado_label.configure(
+        text=f"Total de Arquivos: {total} | Apagados: {apagados} | Ignorados: {ignorados}"
+    )
 
 def LimpezaCache():
-    cachetempclean(progressAtt)
+    resultado = cachetempclean(progressAtt)
+    apagados, ignorados, total = resultado
+    atualizar_resultado(apagados, ignorados, total)
     return 0
 
 def LimpezaNet():
@@ -45,10 +55,12 @@ def Geral():
     LimpezaNetExec()
     return 0
 
+#Criação de Butoes
 btn_geral = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpeza Geral", font=("Bebas Neue", 20), command=Geral)
 btn_cache = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpar apenas os Caches", font=("Bebas Neue", 20), command=LimpezaCacheExec)
 btn_net = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpar de Internet", font=("Bebas Neue", 20), command=LimpezaNetExec)
 
+#Interface
 def InterfaceRoot():
     
     #frame
@@ -56,7 +68,7 @@ def InterfaceRoot():
     
     #cpu status
     cpu.pack(pady=10, padx=10, fill= "both", expand=True)
-    textocpu = ctk.CTkLabel(master=cpu, text="CPU status", fg_color="transparent")
+    textocpu = ctk.CTkLabel(master=cpu, text="CPU STATUS", fg_color="transparent", font=("Montserrat", 30))
     textocpu.pack()
     
     def atualizar_cpu():
@@ -75,9 +87,7 @@ def InterfaceRoot():
     #Butoes
     btn_geral.pack(pady=25, padx=20, fill="both", expand=True)
     
-    
     btn_net.pack(pady=25, padx=20, fill="both", expand=True)
-    
     
     btn_cache.pack(pady=25, padx=20, fill="both", expand=True)
 
