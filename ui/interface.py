@@ -23,8 +23,7 @@ resultado_label = ctk.CTkLabel(master= cpu)
 
 #Criação de Funções
 def progressAtt(valor):
-    progress.set(valor)
-    root.update_idletasks()
+    root.after(0, progress.set(valor))
     
 def atualizar_resultado(apagados, ignorados, total):
         resultado_label.pack()
@@ -34,19 +33,25 @@ def atualizar_resultado(apagados, ignorados, total):
 
 def LimpezaCache():
     resultado = cachetempclean(progressAtt)
-    apagados, ignorados, total = resultado
-    atualizar_resultado(apagados, ignorados, total)
+    apagados = resultado[0]
+    ignorados = resultado[1]
+    total = resultado[2]
+    root.after(0, atualizar_resultado, apagados, ignorados, total)
+    root.after(0, EnableBtnCache)
     return 0
 
 def LimpezaNet():
-    SegundoPlano(netclean(progressAtt))
+    netclean(progressAtt)
+    root.after(0, EnableBtnNet)
     return 0
 
 def LimpezaCacheExec():
+    DisableBtnCache()
     SegundoPlano(LimpezaCache)
     return 0
 
 def LimpezaNetExec():
+    DisableBtnNet()
     SegundoPlano(LimpezaNet)
     return 0
 
@@ -58,7 +63,23 @@ def Geral():
 #Criação de Butoes
 btn_geral = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpeza Geral", font=("Bebas Neue", 20), command=Geral)
 btn_cache = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpar apenas os Caches", font=("Bebas Neue", 20), command=LimpezaCacheExec)
-btn_net = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpar de Internet", font=("Bebas Neue", 20), command=LimpezaNetExec)
+btn_net = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Corrigir erros de Internet", font=("Bebas Neue", 20), command=LimpezaNetExec)
+
+def DisableBtnCache():
+    btn_cache.configure(text="Limpando...", state="disabled")
+    return 0
+
+def EnableBtnCache():
+    btn_cache.configure(text="Limpar apenas os Caches", state="normal")
+    return 0
+
+def DisableBtnNet():
+    btn_net.configure(text="Corrigindo...", state="disabled")
+    return 0
+
+def EnableBtnNet():
+    btn_net.configure(text="Corrigir erros de Internet", state="normal")
+    return 0
 
 #Interface
 def InterfaceRoot():
