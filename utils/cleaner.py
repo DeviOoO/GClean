@@ -60,7 +60,7 @@ def cachetempclean(progressAtt):
     
     #Checagem
     if temp is None:
-        return 0
+        return 0, 0, 0
     
     if not os.path.exists(prefetch_dir):
         return 0
@@ -68,14 +68,27 @@ def cachetempclean(progressAtt):
     if not os.path.exists(win_temp_dir):
         return 0
     
+    #Pega prefetch
     try:
         arq_prefetch = os.listdir(prefetch_dir)
+        
+    except Exception:
+        arq_prefetch = []
+        print("Prefetch não foi pego")
+        
+    #Pega %Temp%
+    try:
         arquivos = os.listdir(temp)
-        arq_wintemp = os.listdir(win_temp_dir)
     except Exception:
         arquivos = []
-        arq_prefetch = []
+        print("%Temp% não foi pego")
+    
+    #Pega win/temp
+    try:
+        arq_wintemp = os.listdir(win_temp_dir)
+    except Exception:
         arq_wintemp = []
+        print("Win/Temp não foi pego")
     
     total_arquivos = len(arquivos) + len(arq_prefetch) + len(arq_wintemp)
     
@@ -86,7 +99,7 @@ def cachetempclean(progressAtt):
     
     if total_arquivos == 0:
         progressAtt(1)
-        return 0
+        return 0, 0, 0
     
     
     for item in arquivos:
