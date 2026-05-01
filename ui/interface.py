@@ -109,8 +109,7 @@ def InterfaceRoot():
     btn_net.pack(pady=25, padx=20, fill="both", expand=True)
     
     btn_cache.pack(pady=25, padx=20, fill="both", expand=True)
-
+    
     return 0
-
 InterfaceRoot()
-root.mainloop() #Mantem o codigo rodando
+root.mainloop()#Mantem o codigo rodando
