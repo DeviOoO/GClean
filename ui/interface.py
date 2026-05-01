@@ -32,10 +32,8 @@ def atualizar_resultado(apagados, ignorados, total):
     )
 
 def LimpezaCache():
-    resultado = cachetempclean(progressAtt)
-    apagados = resultado[0]
-    ignorados = resultado[1]
-    total = resultado[2]
+    apagados, ignorados, total = cachetempclean(progressAtt)
+        
     root.after(0, atualizar_resultado, apagados, ignorados, total)
     root.after(0, EnableBtnCache)
     return 0
