@@ -8,152 +8,126 @@ import psutil
 ctk.set_appearance_mode("system")
 ctk.set_default_color_theme("dark-blue")
 
-#Set de variaveis    
-root = ctk.CTk()
-root.title("GClenaer")
-root.geometry("600x900")
 
-uso = psutil.cpu_percent()
-ram = psutil.virtual_memory()
-
-frame = ctk.CTkFrame(master=root, corner_radius=(15), fg_color="#121316")
-cpu = ctk.CTkFrame(master=frame, corner_radius= 20, fg_color= "#66C0F4")
-progress = ctk.CTkProgressBar(master=frame, orientation="horizontal", corner_radius= 5, mode="determinate", width=500)
-resultado_label = ctk.CTkLabel(master= cpu)
-
-#Criação de Funções
-def progressAtt(valor):
-    """Atualiza a barra de progresso
-
-    Args:
-        valor (number): Porcentagem da barra
-    """    
-    root.after(0, progress.set(valor))
-    
-def atualizar_resultado(apagados, ignorados, total):
-    """Adiciona no GPU status a quantidade de arquivos e quantos foram apagadados ou ignorados
-
-    Args:
-        apagados (number): Quantidade de arquivos apagados
-        ignorados (number): Quantidade de arquivos ignorados
-        total (number): Quantidade de arquivos
-    """    
-    resultado_label.pack()
-    resultado_label.configure(
-        text=f"Total de Arquivos: {total} | Apagados: {apagados} | Ignorados: {ignorados}"
-    )
-
-def LimpezaCache():
-    """Faz limpeza de arquivos, fazendo a chamada da função e recebe os valores da limpeza, então atualiza o Root para mostrar
-    """    
-    apagados, ignorados, total = cachetempclean(progressAtt)
+class App:
+    def __init__(self):
+        #Set de variaveis
+            #Variaveis Base
+        self.root = ctk.CTk()
+        self.frame = ctk.CTkFrame(master=self.root, corner_radius=(15), fg_color="#121316")
+        self.cpu = ctk.CTkFrame(master=self.frame, corner_radius= 20, fg_color= "#66C0F4")
+        self.progress = ctk.CTkProgressBar(master=self.frame, orientation="horizontal", corner_radius= 5, mode="determinate", width=500)
+        self.resultado_label = ctk.CTkLabel(master=self.cpu, text="")
+        self.root.title("GClenaer")
+        self.root.geometry("600x900")
+        self.uso = psutil.cpu_percent()
+        self.ram = psutil.virtual_memory()
+        self.textocpu = ctk.CTkLabel(master=self.cpu, text="CPU STATUS", fg_color="transparent", font=("Montserrat", 30))
+        self.cpuinf = ctk.CTkLabel(master=self.cpu, text=f"Informações \n Uso da Cpu: {self.uso}%", fg_color="transparent")
         
-    root.after(0, atualizar_resultado, apagados, ignorados, total)
-    root.after(0, EnableBtnCache)
+        #Criação de Butoes
+        self.btn_cache = ctk.CTkButton(master=self.frame, corner_radius= 5, fg_color="#2A475E", text="Limpar apenas os Caches", font=("Bebas Neue", 20), command=self.limpeza_cache_exec)
+        self.btn_geral = ctk.CTkButton(master=self.frame, corner_radius= 5, fg_color="#2A475E", text="Limpeza geral", font=("Bebas Neue", 20), command=self.geral)
+        self.btn_net = ctk.CTkButton(master=self.frame, corner_radius= 5, fg_color="#2A475E", text="Corrigir erros de Internet", font=("Bebas Neue", 20), command=self.corrigir_net_exec)
 
-
-def CorrigirNet():
-    """Faz a correção da Internet, fazendo a chamada da função
-    """    
-    netclean(progressAtt)
-    root.after(0, EnableBtnNet)
-
-
-def LimpezaCacheExec():
-    """Execução do botão, chamando as funções DisableBtnCache e fazendo execução em segundo plano de Limpeza Cache
-    """    
-    DisableBtnCache()
-    SegundoPlano(LimpezaCache)
-
-
-def CorrigirNetExec():
-    """Execução do botão, chamando as funções DisableBtnNet e fazendo execução em segundo plano de CorrigirNet
-    """    
-    DisableBtnNet()
-    SegundoPlano(CorrigirNet)
-
-
-def Geral():
-    """Faz o uso de todas as outras funções
-    """    
-    LimpezaCacheExec()
-    CorrigirNetExec()
-
-
-#Criação de Butoes
-btn_geral = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpeza Geral", font=("Bebas Neue", 20), command=Geral)
-btn_cache = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpar apenas os Caches", font=("Bebas Neue", 20), command=LimpezaCacheExec)
-btn_net = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Corrigir erros de Internet", font=("Bebas Neue", 20), command=CorrigirNetExec)
-
-def DisableBtnCache():
-    """Desabilita o botão de limpar cache e muda o texto
-
-    Returns:
-        number: 0
-    """    
-    btn_cache.configure(text="Limpando...", state="disabled")
-    return 0
-
-def EnableBtnCache():
-    """Ativa o botão de limpar cache
-
-    Returns:
-        number: 0
-    """    
-    btn_cache.configure(text="Limpar apenas os Caches", state="normal")
-    return 0
-
-def DisableBtnNet():
-    """Desativa o botão de corrigir Internet e muda o texto
-
-    Returns:
-        number: 0
-    """    
-    btn_net.configure(text="Corrigindo...", state="disabled")
-    return 0
-
-def EnableBtnNet():
-    """Ativa o botão de Corrigir Internet
-
-    Returns:
-        number: 0
-    """    
-    btn_net.configure(text="Corrigir erros de Internet", state="normal")
-    return 0
-
-#Interface
-def InterfaceRoot():
-    
-    #frame
-    frame.pack(pady=10, padx=10, fill="both", expand=True)
-    
-    #cpu status
-    cpu.pack(pady=10, padx=10, fill= "both", expand=True)
-    textocpu = ctk.CTkLabel(master=cpu, text="CPU STATUS", fg_color="transparent", font=("Montserrat", 30))
-    textocpu.pack()
-    
-    def atualizar_cpu():
-        """Atualiza o uso da cpu em tempo real
-        """        
-        uso = psutil.cpu_percent()
-        cpuinf.configure(text=f"Informações \n CPU: {uso}% \n Ram Total: {ram.total / (1024**3):.2f} GB \n Uso de Ram: {ram.used / (1024**3):.2f} GB")
-        root.after(1000, atualizar_cpu)  # roda de novo em 1s
+        #Interface
+        self.frame.pack(pady=10, padx=10, fill="both", expand=True)
+        self.cpu.pack(pady=10, padx=10, fill= "both", expand=True)
+        self.textocpu.pack()
+        self.cpuinf.pack()
+        self.atualizar_cpu()
+        self.resultado_label.pack()
         
-    cpuinf = ctk.CTkLabel(master=cpu, text=f"Informações \n Uso da Cpu: {uso}%", fg_color="transparent")
-    cpuinf.pack()
-    atualizar_cpu()
-    
-    #Progressão
-    progress.pack()
-    progress.set(0)
-    
-    #Butoes
-    btn_geral.pack(pady=25, padx=20, fill="both", expand=True)
-    
-    btn_net.pack(pady=25, padx=20, fill="both", expand=True)
-    
-    btn_cache.pack(pady=25, padx=20, fill="both", expand=True)
-    
-    return 0
-InterfaceRoot()
-root.mainloop()#Mantem o codigo rodando
+        #Progressão
+        self.progress.pack()
+        self.progress.set(0)
+        
+        #Butoes
+        self.btn_geral.pack(pady=25, padx=20, fill="both", expand=True)
+        self.btn_net.pack(pady=25, padx=20, fill="both", expand=True)
+        self.btn_cache.pack(pady=25, padx=20, fill="both", expand=True)
+        
+        
+        
+        #Criação de Metodos
+    def limpeza_cache(self):
+            """Faz limpeza de arquivos, fazendo a chamada da função e recebe os valores da limpeza, então atualiza o Root para mostrar
+            """
+            apagados, ignorados, total = cachetempclean(self.progress_att)
+            
+            self.root.after(0, self.atualizar_resultado, apagados, ignorados, total)
+            self.root.after(0, self.enable_btn_cache)
+            
+    def progress_att(self, valor):
+            """Atualiza a barra de progresso
+
+            Args:
+                valor (number): Porcentagem da barra
+            """    
+            self.root.after(0, self.progress.set, valor)
+
+    def atualizar_resultado(self, apagados, ignorados, total):
+            """Adiciona no GPU status a quantidade de arquivos e quantos foram apagadados ou ignorados
+
+            Args:
+                apagados (number): Quantidade de arquivos apagados
+                ignorados (number): Quantidade de arquivos ignorados
+                total (number): Quantidade de arquivos
+            """    
+            self.resultado_label.configure(
+                text=f"Total de Arquivos: {total} | Apagados: {apagados} | Ignorados: {ignorados}"
+            )
+
+    def corrigir_net(self):
+            """Faz a correção da Internet, fazendo a chamada da função
+            """    
+            netclean(self.progress_att)
+            self.root.after(0, self.enable_btn_net)
+
+    def limpeza_cache_exec(self):
+            """Execução do botão, chamando as funções disable_btn_cache e fazendo execução em segundo plano de Limpeza Cache
+            """    
+            self.disable_btn_cache()
+            SegundoPlano(self.limpeza_cache)
+
+    def corrigir_net_exec(self):
+            """Execução do botão, chamando as funções disable_btn_net e fazendo execução em segundo plano de corrigir_net
+            """    
+            self.disable_btn_net()
+            SegundoPlano(self.corrigir_net)
+
+    def geral(self):
+            """Faz o uso de todas as outras funções
+            """    
+            self.limpeza_cache_exec()
+            self.corrigir_net_exec()
+
+    def disable_btn_cache(self):
+            """Desabilita o botão de limpar cache e muda o texto
+            """    
+            self.btn_cache.configure(text="Limpando...", state="disabled")
+
+    def enable_btn_cache(self):
+            """Ativa o botão de limpar cache
+            """    
+            self.btn_cache.configure(text="Limpar apenas os Caches", state="normal")
+
+    def disable_btn_net(self):
+            """Desativa o botão de corrigir Internet e muda o texto
+            """    
+            self.btn_net.configure(text="Corrigindo...", state="disabled")
+
+    def enable_btn_net(self):
+            """Ativa o botão de Corrigir Internet
+            """    
+            self.btn_net.configure(text="Corrigir erros de Internet", state="normal")
+
+    def atualizar_cpu(self):
+            """Atualiza o uso da cpu em tempo real
+            """        
+            self.uso = psutil.cpu_percent()
+            self.cpuinf.configure(text=f"Informações \n CPU: {self.uso}% \n Ram Total: {self.ram.total / (1024**3):.2f} GB \n Uso de Ram: {self.ram.used / (1024**3):.2f} GB")
+            self.root.after(1000, self.atualizar_cpu)  # roda de novo em 1s
+
+    def run(self):
+        self.root.mainloop()
