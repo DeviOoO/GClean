@@ -3,16 +3,17 @@ import os
 import shutil
 import time
 
-def DeleteArquivos(caminho):
-    if os.path.isfile(caminho):
-        os.remove(caminho)
-                
-    elif os.path.isdir(caminho):
-        shutil.rmtree(caminho)
-    return 0
+
 
 def netclean(progressAtt):
-    
+    """Faz a correção da Internet
+
+    Args:
+        progressAtt (number): Porcentagem do progresso
+
+    Returns:
+        number: 0
+    """    
     # início
     progressAtt(0.1)
     time.sleep(0.3)
@@ -48,7 +49,31 @@ def netclean(progressAtt):
 
     return 0
 
+def DeleteArquivos(caminho):
+    """
+
+    Args:
+        caminho string: Caminho para o arquivo ou pasta a apagar
+
+    Returns:
+        number: 0
+    """    
+    if os.path.isfile(caminho):
+        os.remove(caminho)
+                
+    elif os.path.isdir(caminho):
+        shutil.rmtree(caminho)
+    return 0
+
 def cachetempclean(progressAtt):
+    """Faz a limpeza dos arquivos temporarios
+
+    Args:
+        progressAtt (function): Função callback para atualizar a barra de progresso.
+
+    Returns:
+        Tuple: (apagados, ignorados, total)
+    """    
     #Diretorio Raiz
     windir = os.getenv('SystemRoot')
     prefetch_dir = os.path.join(windir, 'Prefetch')
