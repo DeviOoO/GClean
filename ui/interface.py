@@ -23,59 +23,101 @@ resultado_label = ctk.CTkLabel(master= cpu)
 
 #Criação de Funções
 def progressAtt(valor):
+    """Atualiza a barra de progresso
+
+    Args:
+        valor (number): Porcentagem da barra
+    """    
     root.after(0, progress.set(valor))
     
 def atualizar_resultado(apagados, ignorados, total):
-        resultado_label.pack()
-        resultado_label.configure(
+    """Adiciona no GPU status a quantidade de arquivos e quantos foram apagadados ou ignorados
+
+    Args:
+        apagados (number): Quantidade de arquivos apagados
+        ignorados (number): Quantidade de arquivos ignorados
+        total (number): Quantidade de arquivos
+    """    
+    resultado_label.pack()
+    resultado_label.configure(
         text=f"Total de Arquivos: {total} | Apagados: {apagados} | Ignorados: {ignorados}"
     )
 
 def LimpezaCache():
+    """Faz limpeza de arquivos, fazendo a chamada da função e recebe os valores da limpeza, então atualiza o Root para mostrar
+    """    
     apagados, ignorados, total = cachetempclean(progressAtt)
         
     root.after(0, atualizar_resultado, apagados, ignorados, total)
     root.after(0, EnableBtnCache)
-    return 0
 
-def LimpezaNet():
+
+def CorrigirNet():
+    """Faz a correção da Internet, fazendo a chamada da função
+    """    
     netclean(progressAtt)
     root.after(0, EnableBtnNet)
-    return 0
+
 
 def LimpezaCacheExec():
+    """Execução do botão, chamando as funções DisableBtnCache e fazendo execução em segundo plano de Limpeza Cache
+    """    
     DisableBtnCache()
     SegundoPlano(LimpezaCache)
-    return 0
 
-def LimpezaNetExec():
+
+def CorrigirNetExec():
+    """Execução do botão, chamando as funções DisableBtnNet e fazendo execução em segundo plano de CorrigirNet
+    """    
     DisableBtnNet()
-    SegundoPlano(LimpezaNet)
-    return 0
+    SegundoPlano(CorrigirNet)
+
 
 def Geral():
+    """Faz o uso de todas as outras funções
+    """    
     LimpezaCacheExec()
-    LimpezaNetExec()
-    return 0
+    CorrigirNetExec()
+
 
 #Criação de Butoes
 btn_geral = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpeza Geral", font=("Bebas Neue", 20), command=Geral)
 btn_cache = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Limpar apenas os Caches", font=("Bebas Neue", 20), command=LimpezaCacheExec)
-btn_net = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Corrigir erros de Internet", font=("Bebas Neue", 20), command=LimpezaNetExec)
+btn_net = ctk.CTkButton(master=frame, corner_radius= 5, fg_color="#2A475E", text="Corrigir erros de Internet", font=("Bebas Neue", 20), command=CorrigirNetExec)
 
 def DisableBtnCache():
+    """Desabilita o botão de limpar cache e muda o texto
+
+    Returns:
+        number: 0
+    """    
     btn_cache.configure(text="Limpando...", state="disabled")
     return 0
 
 def EnableBtnCache():
+    """Ativa o botão de limpar cache
+
+    Returns:
+        number: 0
+    """    
     btn_cache.configure(text="Limpar apenas os Caches", state="normal")
     return 0
 
 def DisableBtnNet():
+    """Desativa o botão de corrigir Internet e muda o texto
+
+    Returns:
+        number: 0
+    """    
     btn_net.configure(text="Corrigindo...", state="disabled")
     return 0
 
 def EnableBtnNet():
+    """Ativa o botão de Corrigir Internet
+
+    Returns:
+        number: 0
+    """    
     btn_net.configure(text="Corrigir erros de Internet", state="normal")
     return 0
 
@@ -91,6 +133,8 @@ def InterfaceRoot():
     textocpu.pack()
     
     def atualizar_cpu():
+        """Atualiza o uso da cpu em tempo real
+        """        
         uso = psutil.cpu_percent()
         cpuinf.configure(text=f"Informações \n CPU: {uso}% \n Ram Total: {ram.total / (1024**3):.2f} GB \n Uso de Ram: {ram.used / (1024**3):.2f} GB")
         root.after(1000, atualizar_cpu)  # roda de novo em 1s

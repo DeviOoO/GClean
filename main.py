@@ -21,5 +21,6 @@ if not is_admin:
     SW_HIDE    # How to show the window
 )
     sys.exit()
-
-from ui.interface import InterfaceRoot
+    
+if is_admin:
+    from ui.interface import InterfaceRoot
