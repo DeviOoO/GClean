@@ -23,4 +23,6 @@ if not is_admin:
     sys.exit()
     
 if is_admin:
-    from ui.interface import InterfaceRoot
+    from ui.interface import *
+    app = App()
+    app.run()
