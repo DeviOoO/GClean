@@ -11,8 +11,6 @@ def netclean(progressAtt):
     Args:
         progressAtt (number): Porcentagem do progresso
 
-    Returns:
-        number: 0
     """    
     # início
     progressAtt(0.1)
@@ -47,23 +45,18 @@ def netclean(progressAtt):
 
     progressAtt(1.0)
 
-    return 0
 
 def DeleteArquivos(caminho):
     """
-
     Args:
         caminho string: Caminho para o arquivo ou pasta a apagar
 
-    Returns:
-        number: 0
     """    
     if os.path.isfile(caminho):
         os.remove(caminho)
                 
     elif os.path.isdir(caminho):
         shutil.rmtree(caminho)
-    return 0
 
 def cachetempclean(progressAtt):
     """Faz a limpeza dos arquivos temporarios
