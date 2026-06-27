@@ -1,8 +1,9 @@
 import tkinter as tk
 import customtkinter as ctk
 from utils.cleaner import *
-from core.thread import *
+from core.Thread import *
 import psutil
+import sys
 
 #Set de aparencia 
 ctk.set_appearance_mode("system")
@@ -46,7 +47,7 @@ class App:
         self.btn_geral.pack(pady=25, padx=20, fill="both", expand=True)
         self.btn_net.pack(pady=25, padx=20, fill="both", expand=True)
         self.btn_cache.pack(pady=25, padx=20, fill="both", expand=True)
-        
+        self.root.protocol("WM_DELETE_WINDOW", self.fechar_janela)
         
         
         #Criação de Metodos
@@ -130,4 +131,8 @@ class App:
             self.root.after(1000, self.atualizar_cpu)  # roda de novo em 1s
 
     def run(self):
-        self.root.mainloop()
+                self.root.mainloop()
+
+    def fechar_janela(self):
+                self.root.destroy()
+                sys.exit(0)

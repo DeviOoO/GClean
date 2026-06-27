@@ -16,9 +16,9 @@ if not is_admin:
     None,            # Parent window handle (None/NULL)
     "runas",         # Verb: "runas" for Admin, "open" for standard launch
     sys.executable,  # Path to the executable (e.g., python.exe)
-    params,     # Parameters to pass
+    params,          # Parameters to pass
     None,            # Working directory (None uses current)
-    SW_HIDE    # How to show the window
+    SW_HIDE          # How to show the window
 )
     sys.exit()
     

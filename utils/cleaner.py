@@ -6,44 +6,63 @@ import time
 
 
 def netclean(progressAtt):
-    """Faz a correção da Internet
-
-    Args:
-        progressAtt (number): Porcentagem do progresso
-
-    """    
+    """Faz a correção profunda e otimização da Internet"""    
     # início
-    progressAtt(0.1)
-    time.sleep(0.3)
+    progressAtt(0.05)
+    time.sleep(0.2)
 
-    subprocess.run(['ipconfig', '/flushdns'])
+    # 1. Limpeza de Caches de Rede e DNS
+    subprocess.run(['ipconfig', '/flushdns'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    subprocess.run(['nbtstat', '-R'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    subprocess.run(['nbtstat', '-rr'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
 
-    progressAtt(0.3)
-    time.sleep(0.3)
+    progressAtt(0.20)
+    time.sleep(0.2)
 
-    subprocess.run(['ipconfig', '/release'])
+    # 2. Liberação e Renovação de IP
+    subprocess.run(['ipconfig', '/release'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    progressAtt(0.40)
+    time.sleep(0.2)
+    
+    subprocess.run(['ipconfig', '/renew'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    progressAtt(0.55)
+    time.sleep(0.2)
 
-    progressAtt(0.5)
-    time.sleep(0.3)
+    # 3. Resets de Protocolos e Catálogos (Winsock e IP)
+    subprocess.run(['netsh', 'winsock', 'reset'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    subprocess.run(['netsh', 'int', 'ip', 'reset'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    progressAtt(0.70)
+    time.sleep(0.2)
 
-    subprocess.run(['ipconfig', '/renew'])
-
-    progressAtt(0.7)
-    time.sleep(0.3)
-
-    subprocess.run(['netsh','winsock','reset'])
-
+    # 4. Otimizações de desempenho TCP e Redefinição do Firewall
+    subprocess.run(['netsh', 'advfirewall', 'reset'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    subprocess.run(['netsh', 'int', 'tcp', 'set', 'heuristics', 'disabled'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    subprocess.run(['netsh', 'int', 'tcp', 'set', 'global', 'autotuninglevel=normal'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    
+    # [NOVO] Desativar o Seeding do Windows Update (Otimização de Entrega)
+    subprocess.run(['powershell', '-Command', 'Set-SeedingPreference -Value 0'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    
     progressAtt(0.85)
-    time.sleep(0.3)
+    time.sleep(0.2)
 
-    subprocess.run(['netsh','int','ip','reset'])
+    # 5. [NOVO] Aplicação de DNS Gamer (Cloudflare) na Placa Ativa
+    try:
+        comando_nome_rede = "Get-NetAdapter | Where-Object {$_.Status -eq 'Up'} | Select-Object -ExpandProperty Name"
+        resultado = subprocess.run(['powershell', '-Command', comando_nome_rede], capture_output=True, text=True, shell=True, timeout=5)
+        nome_placa_ativa = resultado.stdout.strip()
 
-    progressAtt(0.95)
-    time.sleep(0.3)
+        if nome_placa_ativa:
+            # Configura DNS Primário
+            subprocess.run(['netsh', 'interface', 'ipv4', 'set', 'dns', f'name="{nome_placa_ativa}"', 'static', '1.1.1.1', 'primary'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+            # Configura DNS Secundário
+            subprocess.run(['netsh', 'interface', 'ipv4', 'add', 'dns', f'name="{nome_placa_ativa}"', '1.0.0.1', 'index=2'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    except Exception:
+        pass # Se falhar em achar a rede, apenas pula para não travar o app
 
-    subprocess.run(['nbtstat', '-rr'])
-
+    # Finalização
     progressAtt(1.0)
+    time.sleep(0.5)
+    progressAtt(0)
 
 
 def DeleteArquivos(caminho):
@@ -81,10 +100,10 @@ def cachetempclean(progressAtt):
         return 0, 0, 0
     
     if not os.path.exists(prefetch_dir):
-        return 0
+        return 0, 0, 0
     
     if not os.path.exists(win_temp_dir):
-        return 0
+        return 0, 0, 0
     
     #Pega prefetch
     try:
@@ -119,39 +138,25 @@ def cachetempclean(progressAtt):
         progressAtt(1)
         return 0, 0, 0
     
-    
-    for item in arquivos:
-        caminho = os.path.join(temp, item)
-        try:
-            DeleteArquivos(caminho)
-            apagados += 1 
-            
-        except Exception:
-            ignorados += 1
-        progresso = (apagados + ignorados) / total_arquivos
-        progressAtt(progresso)
-        
-    for item in arq_prefetch:
-        caminho_temp = os.path.join(prefetch_dir, item)
-        try:
-            DeleteArquivos(caminho_temp)
-            apagados += 1 
-        except Exception:
-            ignorados += 1       
-        progresso = (apagados + ignorados) / total_arquivos
-        progressAtt(progresso)
+    pasta_limpeza = [(temp, arquivos), (prefetch_dir, arq_prefetch), (win_temp_dir, arq_wintemp)]
 
-    for item in arq_wintemp:
-        caminho_wintemp = os.path.join(win_temp_dir, item)
-        try:
-            DeleteArquivos(caminho_wintemp)
-            apagados += 1
-        except Exception:
-            ignorados += 1
-        progresso = (apagados + ignorados) / total_arquivos
-        progressAtt(progresso)
+    for diretorio, lista_arquivos in pasta_limpeza:
+        for item in lista_arquivos:
+            # Ignora os arquivos com prefixo _MEI do próprio PyInstaller para evitar crash
+            if item.startswith('_MEI'):
+                ignorados += 1
+                continue
+                
+            caminho = os.path.join(diretorio, item)
+            try:
+                DeleteArquivos(caminho)
+                apagados += 1 
+            except Exception:
+                ignorados += 1
+                
+            progresso = (apagados + ignorados) / total_arquivos
+            progressAtt(progresso)
     
     progressAtt(1)
-    print("Número de arquivos apagados: ",apagados)
-    print("Número de arquivos ignorados: ",ignorados)
     return apagados, ignorados, total_arquivos
+    
