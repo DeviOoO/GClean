@@ -68,3 +68,87 @@ def DeleteArquivos(caminho):
             shutil.rmtree(caminho, ignore_errors=True)
     except Exception:
         raise # Deixa o bloco superior contar como ignorado no try-except principal
+        
+def cachetempclean(progressAtt):
+    """Faz a limpeza dos arquivos temporarios
+
+    Args:
+        progressAtt (function): Função callback para atualizar a barra de progresso.
+
+    Returns:
+        Tuple: (apagados, ignorados, total)
+    """    
+    #Diretorio Raiz
+    windir = os.getenv('SystemRoot')
+    prefetch_dir = os.path.join(windir, 'Prefetch')
+    win_temp_dir = os.path.join(windir, 'Temp')
+    temp = os.getenv('TEMP')
+    
+    #Inicio
+    progressAtt(0)
+    
+    #Checagem
+    if temp is None:
+        return 0, 0, 0
+    
+    if not os.path.exists(prefetch_dir):
+        return 0, 0, 0
+    
+    if not os.path.exists(win_temp_dir):
+        return 0, 0, 0
+    
+    #Pega prefetch
+    try:
+        arq_prefetch = os.listdir(prefetch_dir)
+        
+    except Exception:
+        arq_prefetch = []
+        print("Prefetch não foi pego")
+        
+    #Pega %Temp%
+    try:
+        arquivos = os.listdir(temp)
+    except Exception:
+        arquivos = []
+        print("%Temp% não foi pego")
+    
+    #Pega win/temp
+    try:
+        arq_wintemp = os.listdir(win_temp_dir)
+    except Exception:
+        arq_wintemp = []
+        print("Win/Temp não foi pego")
+    
+    total_arquivos = len(arquivos) + len(arq_prefetch) + len(arq_wintemp)
+    
+    print("Quantidade de arquivos: ", total_arquivos)
+    
+    apagados = 0
+    ignorados = 0
+    
+    if total_arquivos == 0:
+        progressAtt(1)
+        return 0, 0, 0
+    
+    pasta_limpeza = [(temp, arquivos), (prefetch_dir, arq_prefetch), (win_temp_dir, arq_wintemp)]
+
+    for diretorio, lista_arquivos in pasta_limpeza:
+        for item in lista_arquivos:
+            # Ignora os arquivos com prefixo _MEI do próprio PyInstaller para evitar crash
+            if item.startswith('_MEI'):
+                ignorados += 1
+                continue
+                
+            caminho = os.path.join(diretorio, item)
+            try:
+                DeleteArquivos(caminho)
+                apagados += 1 
+            except Exception:
+                ignorados += 1
+                
+            progresso = (apagados + ignorados) / total_arquivos
+            progressAtt(progresso)
+    
+    progressAtt(1)
+    return apagados, ignorados, total_arquivos
+    
