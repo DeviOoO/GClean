@@ -132,3 +132,7 @@ class App:
 
     def run(self):
         self.root.mainloop()
+
+    def fechar_janela(self):
+        self.root.destroy()
+        sys.exit(0)
