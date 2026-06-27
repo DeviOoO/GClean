@@ -1,7 +1,7 @@
 import tkinter as tk
 import customtkinter as ctk
 from utils.cleaner import *
-from core.thread import *
+from core.Thread import *
 import psutil
 
 #Set de aparencia 
