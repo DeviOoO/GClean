@@ -152,3 +152,51 @@ def cachetempclean(progressAtt):
     progressAtt(1)
     return apagados, ignorados, total_arquivos
     
+def sysoptimize(progressAtt):
+    """Faz a otimização do sistema, plano de energia e limpeza de logs de erro."""
+    progressAtt(0.05)
+    time.sleep(0.1)
+
+    # 1. Configuração do Plano de Energia para Alto Desempenho
+    try:
+        guid_alto_desempenho = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"
+        subprocess.run(['powercfg', '/setactive', guid_alto_desempenho], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except Exception:
+        pass
+    progressAtt(0.35)
+
+    # 2. Limpeza de Logs do Sistema (C:\Windows\Logs)
+    try:
+        windir = os.getenv('SystemRoot')
+        if windir:
+            logs_dir = os.path.join(windir, 'Logs')
+            if os.path.exists(logs_dir):
+                for item in os.listdir(logs_dir):
+                    caminho = os.path.join(logs_dir, item)
+                    try:
+                        DeleteArquivos(caminho) # Reutilizando sua função segura!
+                    except Exception:
+                        continue
+    except Exception:
+        pass
+    progressAtt(0.70)
+
+    # 3. Otimização de Memória do Sistema de Arquivos (NTFS Cache)
+    try:
+        # Configura o Windows para priorizar o cache de arquivos em tarefas pesadas
+        subprocess.run(['fsutil', 'behavior', 'set', 'memoryusage', '2'], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except Exception:
+        pass
+    progressAtt(0.85)
+
+    # 4. Liberação de RAM interna (Empty Working Set do próprio App)
+    try:
+        import ctypes
+        handle = ctypes.windll.kernel32.GetCurrentProcess()
+        ctypes.windll.psapi.EmptyWorkingSet(handle)
+    except Exception:
+        pass 
+
+    progressAtt(1.0)
+    time.sleep(0.5)
+    progressAtt(0)
