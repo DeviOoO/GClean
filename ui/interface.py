@@ -1,6 +1,6 @@
 import tkinter as tk
 import customtkinter as ctk
-from utils.cleaner import *
+from utils.Cleaner import *
 from core.Thread import *
 import psutil
 import sys

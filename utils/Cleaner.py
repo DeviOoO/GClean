@@ -226,10 +226,6 @@ def cachetempclean(progressAtt):
 
     progressAtt(0)
 
-    # Checagem ANTES de montar os caminhos: a versão original fazia
-    # os.path.join(windir, ...) antes de checar se windir era None, o que
-    # gerava um TypeError não tratado e travava a thread silenciosamente
-    # (o botão "Limpar Cache" ficava desabilitado para sempre).
     if windir is None or temp is None:
         progressAtt(1)
         time.sleep(0.3)
@@ -325,6 +321,52 @@ def _tentar_ativar_plano(guid):
     return guid.lower() in (verificacao.stdout or "").lower()
 
 
+def _listar_planos_energia():
+    """Lista todos os planos de energia já existentes na máquina via `powercfg /list`.
+
+    Returns:
+        list[Tuple[str, str]]: lista de (guid, nome_do_plano).
+    """
+    try:
+        resultado = subprocess.run(
+            ['powercfg', '/list'], shell=True, capture_output=True, text=True, timeout=5
+        )
+    except Exception:
+        return []
+
+    planos = []
+    padrao_linha = re.compile(
+        r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*\((.*?)\)'
+    )
+    for linha in (resultado.stdout or "").splitlines():
+        match = padrao_linha.search(linha)
+        if match:
+            planos.append((match.group(1), match.group(2).strip()))
+    return planos
+
+
+def _buscar_guid_por_nome(planos, padroes_nome):
+    """Procura, entre os planos já existentes, um cujo nome bata com algum padrão.
+
+    Essencial para não duplicar o plano de Desempenho Máximo a cada otimização:
+    como /duplicatescheme sempre gera um GUID novo para a cópia, comparar pelo
+    GUID do template nunca identificaria uma cópia já criada anteriormente —
+    só o nome se mantém reconhecível entre execuções.
+
+    Args:
+        planos (list[Tuple[str, str]]): saída de _listar_planos_energia().
+        padroes_nome (list[str]): trechos (lowercase) a procurar no nome do plano.
+
+    Returns:
+        str | None: GUID do plano encontrado, ou None.
+    """
+    for guid, nome in planos:
+        nome_lower = nome.lower()
+        if any(padrao in nome_lower for padrao in padroes_nome):
+            return guid
+    return None
+
+
 def _duplicar_e_ativar(guid_template):
     """Duplica um plano oculto a partir do template da Microsoft e ativa a cópia.
 
@@ -356,13 +398,14 @@ def _ajustar_plano_energia():
     """Tenta ativar o melhor plano de energia disponível, em ordem de prioridade:
 
     1. Desempenho Máximo (Ultimate Performance) — template oculto da Microsoft
-       (GUID e9a42b02-d5df-448d-aa00-03f14749eb61). Oferece o máximo de
-       desempenho eliminando micro-latências de gerenciamento de energia. Pode
-       já estar duplicado na máquina; se não estiver, é criado via
-       /duplicatescheme.
+       (GUID e9a42b02-d5df-448d-aa00-03f14749eb61). Antes de duplicar, busca em
+       `powercfg /list` se algum plano já existente tem nome de Desempenho
+       Máximo/Ultimate Performance e, se achar, apenas ativa esse — evitando
+       acumular várias cópias do plano a cada otimização. Só duplica o
+       template se nenhuma cópia prévia for encontrada.
     2. Alto Desempenho — fallback caso o template de Desempenho Máximo não
-       possa ser duplicado (GUID 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c).
-       Mesma lógica: tenta ativar direto; se não existir, duplica e ativa.
+       possa ser duplicado (GUID 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c). Mesma
+       lógica de busca por nome antes de duplicar.
 
     Em notebooks na bateria nenhum plano é alterado, para não aumentar o
     consumo/temperatura sem o usuário saber o motivo.
@@ -370,11 +413,11 @@ def _ajustar_plano_energia():
     Returns:
         Tuple[bool, str]: sucesso e mensagem descritiva.
     """
-    GUID_MAXIMO      = "e9a42b02-d5df-448d-aa00-03f14749eb61"
-    GUID_ALTO        = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"
+    GUID_MAXIMO = "e9a42b02-d5df-448d-aa00-03f14749eb61"
+    GUID_ALTO = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"
 
-    # Guarda GUID original para restaurar se nenhum plano superior funcionar
-    guid_original = None
+    NOMES_MAXIMO = ["desempenho máximo", "desempenho maximo", "ultimate performance", "Desempenho Máximo", "Desempenho Maximo", "Ultimate Performance"]
+    NOMES_ALTO = ["alto desempenho", "high performance", "Alto Desempenho", "High Performance"]
 
     if psutil is not None:
         try:
@@ -385,31 +428,31 @@ def _ajustar_plano_energia():
             pass
 
     try:
-        # Preserva o plano atual antes de alterar qualquer coisa
-        atual = subprocess.run(
-            ['powercfg', '/getactivescheme'], shell=True, capture_output=True, text=True, timeout=5
-        )
-        match_atual = re.search(
-            r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
-            atual.stdout or ""
-        )
-        if match_atual:
-            guid_original = match_atual.group(0)
+        planos = _listar_planos_energia()
 
-        # --- Tentativa 1: Desempenho Máximo já existente na máquina ---
-        if _tentar_ativar_plano(GUID_MAXIMO):
-            return True, "Plano Desempenho Máximo ativado"
+        # --- Desempenho Máximo: busca por nome antes de duplicar de novo ---
+        guid_existente = _buscar_guid_por_nome(planos, NOMES_MAXIMO)
+        if guid_existente and _tentar_ativar_plano(guid_existente):
+            return True, "Plano Desempenho Máximo já existia — ativado sem duplicar"
 
-        # --- Tentativa 2: Duplicar o template oculto de Desempenho Máximo ---
+        # Também cobre o caso raro do template já estar listado com o próprio GUID padrão
+        if any(guid.lower() == GUID_MAXIMO.lower() for guid, _ in planos):
+            if _tentar_ativar_plano(GUID_MAXIMO):
+                return True, "Plano Desempenho Máximo ativado"
+
         novo = _duplicar_e_ativar(GUID_MAXIMO)
         if novo:
             return True, "Plano Desempenho Máximo criado e ativado"
 
-        # --- Tentativa 3: Alto Desempenho já existente ---
-        if _tentar_ativar_plano(GUID_ALTO):
-            return True, "Desempenho Máximo indisponível — Plano Alto Desempenho ativado"
+        # --- Fallback: Alto Desempenho, mesma lógica de não duplicar à toa ---
+        guid_existente = _buscar_guid_por_nome(planos, NOMES_ALTO)
+        if guid_existente and _tentar_ativar_plano(guid_existente):
+            return True, "Desempenho Máximo indisponível — Plano Alto Desempenho já existia, ativado sem duplicar"
 
-        # --- Tentativa 4: Duplicar o template de Alto Desempenho ---
+        if any(guid.lower() == GUID_ALTO.lower() for guid, _ in planos):
+            if _tentar_ativar_plano(GUID_ALTO):
+                return True, "Desempenho Máximo indisponível — Plano Alto Desempenho ativado"
+
         novo = _duplicar_e_ativar(GUID_ALTO)
         if novo:
             return True, "Desempenho Máximo indisponível — Plano Alto Desempenho criado e ativado"
@@ -455,9 +498,6 @@ def _otimizar_disco():
     pela própria Microsoft). HDD mecânico -> roda desfragmentação real, mas com
     timeout limitado para não travar a otimização inteira em discos muito
     fragmentados; se exceder o tempo, sinaliza como recomendação manual.
-
-    Substitui o antigo `fsutil behavior set memoryusage 2`, que é um parâmetro
-    legado do Windows 2000/XP sem efeito real em versões modernas do Windows.
 
     Returns:
         Tuple[bool, str]: sucesso e descrição do que foi feito.
@@ -542,12 +582,9 @@ def _limpar_cache_windows_update():
 def _liberar_memoria_sistema():
     """Libera RAM de todo o sistema, não só do processo do GCleaner.
 
-    A versão original chamava EmptyWorkingSet apenas no próprio processo do
-    app, que já é minúsculo — sem efeito perceptível. Esta versão percorre os
-    processos do usuário (como o Mem Reduct ou o RAMMap fazem) e força a
+    Percorre os processos do usuário (como o Mem Reduct ou o RAMMap fazem) e força a
     liberação do working set de cada um, devolvendo páginas inativas de RAM
-    física ao sistema. É importante deixar claro para o usuário que esse é um
-    efeito temporário — processos ativos voltam a reivindicar a RAM que
+    física ao sistema. Esse é um efeito temporário — processos ativos voltam a reivindicar a RAM que
     precisam logo depois — mas ajuda a "destravar" RAM ociosa acumulada por
     apps em segundo plano.
 
