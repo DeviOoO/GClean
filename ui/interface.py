@@ -34,7 +34,7 @@ class App:
         x=(largura_tela-largura)//2
         y=(altura_tela-altura)//2
         self.root.geometry(f"{largura}x{altura}+{x}+{y}")
-        self.root.resizable(False, False)
+        self.root.resizable(True, True)
 
         # Frame principal
         self.frame = ctk.CTkScrollableFrame(master=self.root, corner_radius=15, fg_color=_COR_FUNDO)
