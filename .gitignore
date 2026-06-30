@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .venv/.gitignore
 .venv/pyvenv.cfg
 .venv/Lib/site-packages/customtkinter/__init__.py
@@ -1569,3 +1570,26 @@ dist/GClean/_internal/tcl8/8.5/tcltest-2.5.8.tm
 dist/GClean/_internal/tcl8/8.6/http-2.9.8.tm
 GCleaner.spec
 main.spec
+=======
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ambiente virtual
+venv/
+.env/
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+>>>>>>> 878fd800ecbc83ce3be109f1cf07d78fa0ad28c3
