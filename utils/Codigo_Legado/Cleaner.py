@@ -6,6 +6,7 @@ import re
 import ctypes
 import json
 import sys
+import logging
 
 try:
     import winreg
@@ -360,16 +361,46 @@ def _tentar_ativar_plano(guid):
     return guid.lower() in (verificacao.stdout or "").lower()
 
 
+def _oem_encoding():
+    """Retorna o code page OEM do Windows (ex: 'cp850') para decodificar saída do console.
+
+    O console do Windows usa o code page OEM (GetOEMCP), diferente do code page
+    ANSI (CP1252) que o Python usa por padrão com text=True. Misturar os dois
+    faz caracteres acentuados — como o 'á' de 'Máximo' — virarem lixo ou
+    espaços não-quebráveis, quebrando a busca por nome de plano de energia.
+    """
+    try:
+        oem = ctypes.windll.kernel32.GetOEMCP()
+        return f'cp{oem}'
+    except Exception:
+        return 'cp850'  # fallback: CP850 é o padrão OEM no Brasil e Europa Ocidental
+
+
+def _normalizar(texto):
+    """Remove acentos e converte para minúsculo para comparação segura entre encodings."""
+    import unicodedata
+    sem_acento = ''.join(
+        c for c in unicodedata.normalize('NFD', texto)
+        if unicodedata.category(c) != 'Mn'
+    )
+    return sem_acento.lower()
+
+
 def _listar_planos_energia():
     """Lista todos os planos de energia já existentes na máquina via `powercfg /list`.
+
+    Decodifica a saída com o code page OEM real do console (via GetOEMCP) em vez
+    de deixar o Python usar CP1252 por padrão — evitando que 'á' de 'Máximo'
+    vire lixo/espaço e quebre a busca por nome.
 
     Returns:
         list[Tuple[str, str]]: lista de (guid, nome_do_plano).
     """
     try:
         resultado = subprocess.run(
-            ['powercfg', '/list'], shell=True, capture_output=True, text=True, timeout=5
+            ['powercfg', '/list'], shell=True, capture_output=True, timeout=5
         )
+        texto = resultado.stdout.decode(_oem_encoding(), errors='replace')
     except Exception:
         return []
 
@@ -377,7 +408,7 @@ def _listar_planos_energia():
     padrao_linha = re.compile(
         r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*\((.*?)\)'
     )
-    for linha in (resultado.stdout or "").splitlines():
+    for linha in texto.splitlines():
         match = padrao_linha.search(linha)
         if match:
             planos.append((match.group(1), match.group(2).strip()))
@@ -387,21 +418,21 @@ def _listar_planos_energia():
 def _buscar_guid_por_nome(planos, padroes_nome):
     """Procura, entre os planos já existentes, um cujo nome bata com algum padrão.
 
-    Essencial para não duplicar o plano de Desempenho Máximo a cada otimização:
-    como /duplicatescheme sempre gera um GUID novo para a cópia, comparar pelo
-    GUID do template nunca identificaria uma cópia já criada anteriormente —
-    só o nome se mantém reconhecível entre execuções.
+    Usa _normalizar() em ambos os lados da comparação para ser imune a
+    diferenças de encoding ou acentuação entre o que o Windows retorna e o
+    que passamos como padrão (ex: 'maximo' bate com 'Máximo' ou 'M ximo').
 
     Args:
         planos (list[Tuple[str, str]]): saída de _listar_planos_energia().
-        padroes_nome (list[str]): trechos (lowercase) a procurar no nome do plano.
+        padroes_nome (list[str]): trechos a procurar no nome do plano.
 
     Returns:
         str | None: GUID do plano encontrado, ou None.
     """
+    padroes_norm = [_normalizar(p) for p in padroes_nome]
     for guid, nome in planos:
-        nome_lower = nome.lower()
-        if any(padrao in nome_lower for padrao in padroes_nome):
+        nome_norm = _normalizar(nome)
+        if any(padrao in nome_norm for padrao in padroes_norm):
             return guid
     return None
 
@@ -587,6 +618,9 @@ def _ajustar_plano_energia():
     Returns:
         Tuple[bool, str]: sucesso e mensagem descritiva.
     """
+    dados = _ler_estado_gclean()
+    guid_original = dados.get('plano_energia_original')
+
     GUID_MAXIMO = "e9a42b02-d5df-448d-aa00-03f14749eb61"
     GUID_ALTO = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"
 
@@ -623,8 +657,8 @@ def _ajustar_plano_energia():
                 os.makedirs(_PASTA_APP, exist_ok=True)
                 with open(_ARQ_PLANO_ORIGINAL, 'w') as f:
                     f.write(guid_original)
-        except Exception:
-            pass
+        except OSError as e:
+            logging.warning("Não foi possível salvar o plano original: %s", e)
 
         # --- Desempenho Máximo: busca por nome antes de duplicar de novo ---
         guid_existente = _buscar_guid_por_nome(planos, NOMES_MAXIMO)
@@ -932,8 +966,8 @@ def limpar_planos_duplicados():
     Returns:
         Tuple[bool, str]
     """
-    NOMES_MAXIMO = ["desempenho máximo", "desempenho maximo", "ultimate performance", "Desempenho Máximo", "Desempenho Maximo"]
-    NOMES_ALTO   = ["alto desempenho", "high performance", "Alto"]
+    NOMES_MAXIMO = ["desempenho máximo", "desempenho maximo", "ultimate performance"]
+    NOMES_ALTO   = ["alto desempenho", "high performance"]
 
     try:
         planos = _listar_planos_energia()

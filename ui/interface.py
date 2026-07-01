@@ -1,6 +1,6 @@
 import tkinter as tk
 import customtkinter as ctk
-from utils.Cleaner import *
+from utils import *
 from core.Thread import *
 import psutil
 import sys
@@ -9,53 +9,86 @@ import sys
 ctk.set_appearance_mode("system")
 ctk.set_default_color_theme("dark-blue")
 
-# Paleta interna
-_COR_FUNDO    = "#121316"
-_COR_PAINEL   = "#66C0F4"
-_COR_BOTAO    = "#2A475E"
-_COR_SUCESSO  = "#1b4332"
-_COR_AVISO    = "#7b4a00"
+# Paleta interna (constantes que não dependem de escala)
+_COR_FUNDO   = "#121316"
+_COR_PAINEL  = "#66C0F4"
+_COR_BOTAO   = "#2A475E"
+_COR_SUCESSO = "#1b4332"
+_COR_AVISO   = "#7b4a00"
 _FONTE_TITULO = ("Montserrat", 30)
 _FONTE_BOTAO  = ("Bebas Neue", 20)
-_FONTE_INFO   = ("Consolas", 11)
-
+_FONTE_INFO   = ("Consolas",   11)
 
 class App:
     def __init__(self):
         # ------------------------------------------------------------------ #
-        # Janela raiz
+        # Janela raiz — criada ANTES do set_widget_scaling para que
+        # winfo_screen* já retorne os valores reais da tela.
         # ------------------------------------------------------------------ #
         self.root = ctk.CTk()
         self.root.title("GCleaner")
-        largura_tela = self.root.winfo_screenwidth()
-        altura_tela = self.root.winfo_screenheight()
-        largura = min(650, int(largura_tela * 0.45))
-        altura = min(1120, int(altura_tela * 0.90))
-        x=(largura_tela-largura)//2
-        y=(altura_tela-altura)//2
-        self.root.geometry(f"{largura}x{altura}+{x}+{y}")
+
+        # ------------------------------------------------------------------ #
+        # Escala responsiva
+        # Dimensões de design: 650 × 1120 (o layout foi pensado nesse tamanho).
+        # Calculamos o fator 'e' necessário para que a janela caiba na tela do
+        # usuário, depois passamos esse fator ao customtkinter via
+        # set_widget_scaling — ele cuida de redimensionar fontes, widgets,
+        # bordas e padding automaticamente. Não precisamos de _p()/_f() manuais.
+        # ------------------------------------------------------------------ #
+        _DW, _DH = 650, 1120
+
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+
+        # Reserva espaço para barra de tarefas + borda do SO
+        avail_w = sw - 40
+        avail_h = sh - 80
+
+        # Fator de escala: nunca ultrapassa 1.0 (não amplia em telas grandes)
+        e = min(avail_w / _DW, avail_h / _DH, 1.0)
+
+        # Aplica a escala em TODOS os widgets do customtkinter de uma vez.
+        # Isso inclui fontes, paddings internos, corner_radius e alturas de botão.
+        ctk.set_widget_scaling(e)
+        ctk.set_window_scaling(e)
+
+        win_w = int(_DW * e)
+        win_h = int(_DH * e)
+
+        # Centraliza na tela
+        pos_x = (sw - win_w) // 2
+        pos_y = max(0, (sh - win_h) // 2)
+
+        self.root.geometry(f"{win_w}x{win_h}+{pos_x}+{pos_y}")
         self.root.resizable(True, True)
 
+        # ------------------------------------------------------------------ #
+        # Fontes — em tamanho de design; o set_widget_scaling já as reduz
+        # ------------------------------------------------------------------ #
+
         # Frame principal
-        self.frame = ctk.CTkScrollableFrame(master=self.root, corner_radius=15, fg_color=_COR_FUNDO)
+        self.frame = ctk.CTkFrame(master=self.root, corner_radius=15, fg_color=_COR_FUNDO)
         self.frame.pack(pady=10, padx=10, fill="both", expand=True)
 
         # ------------------------------------------------------------------ #
         # Painel de status (CPU / RAM)
         # ------------------------------------------------------------------ #
         self.cpu_frame = ctk.CTkFrame(master=self.frame, corner_radius=20, fg_color=_COR_PAINEL)
-        self.cpu_frame.pack(pady=20, padx=20, fill="both", expand=True)
+        self.cpu_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
         ctk.CTkLabel(master=self.cpu_frame, text="CPU STATUS",
-                     fg_color="transparent", font=_FONTE_TITULO).pack()
+                     fg_color="transparent", font=_FONTE_TITULO).pack(pady=(4, 0))
 
-        self.cpuinf = ctk.CTkLabel(master=self.cpu_frame, text="", fg_color="transparent")
+        self.cpuinf = ctk.CTkLabel(master=self.cpu_frame, text="",
+                                    fg_color="transparent",
+                                    font=("Montserrat", 12))
         self.cpuinf.pack()
 
         # Label de resultado (log de etapas)
         self.resultado_label = ctk.CTkLabel(master=self.cpu_frame, text="",
-                                            fg_color="transparent", font=_FONTE_INFO,
-                                            justify="left")
+                                             fg_color="transparent", font=_FONTE_INFO,
+                                             justify="left")
         self.resultado_label.pack(pady=(4, 2))
 
         # ------------------------------------------------------------------ #
@@ -64,18 +97,20 @@ class App:
         self.frame_delta = ctk.CTkFrame(master=self.frame, corner_radius=10, fg_color="#1a1d21")
         self.frame_delta.pack(pady=(0, 6), padx=10, fill="x")
 
-        self.label_delta = ctk.CTkLabel(master=self.frame_delta,
-                                         text="Antes / Depois: execute uma operação para ver o resultado",
-                                         fg_color="transparent", font=_FONTE_INFO,
-                                         text_color="#8fa3b1", justify="left")
+        self.label_delta = ctk.CTkLabel(
+            master=self.frame_delta,
+            text="Antes / Depois: execute uma operação para ver o resultado",
+            fg_color="transparent", font=_FONTE_INFO,
+            text_color="#8fa3b1", justify="left")
         self.label_delta.pack(padx=10, pady=6, anchor="w")
 
         # ------------------------------------------------------------------ #
         # Barra de progresso
         # ------------------------------------------------------------------ #
-        self.progress = ctk.CTkProgressBar(master=self.frame, orientation="horizontal",
-                                            corner_radius=5, mode="determinate") 
-        self.progress.pack(pady=(0, 8), padx=20, fill="x")
+        self.progress = ctk.CTkProgressBar(
+            master=self.frame, orientation="horizontal",
+            corner_radius=5, mode="determinate", width=600)
+        self.progress.pack(pady=(0, 8))
         self.progress.set(0)
 
         # ------------------------------------------------------------------ #
@@ -101,12 +136,12 @@ class App:
                                   fg_color=_COR_BOTAO, text=texto,
                                   font=_FONTE_BOTAO, command=comando)
 
-        self.btn_geral     = _btn("Limpeza Geral",              self.geral_exec)
-        self.btn_net       = _btn("Corrigir Erros de Internet",  self.corrigir_net_exec)
-        self.btn_cache     = _btn("Limpar Cache e Temporários",  self.limpeza_cache_exec)
-        self.btn_otimizar  = _btn("Otimizar Sistema",            self.otimizar_exec)
+        self.btn_geral     = _btn("Limpeza Geral",               self.geral_exec)
+        self.btn_net       = _btn("Corrigir Erros de Internet",   self.corrigir_net_exec)
+        self.btn_cache     = _btn("Limpar Cache e Temporários",   self.limpeza_cache_exec)
+        self.btn_otimizar  = _btn("Otimizar Sistema",             self.otimizar_exec)
         self.btn_restaurar = _btn("↩ Restaurar Plano de Energia", self.restaurar_exec)
-        self.btn_startup   = _btn("⚙  Gerenciar Inicialização",  self.abrir_startup_manager)
+        self.btn_startup   = _btn("⚙  Gerenciar Inicialização",   self.abrir_startup_manager)
         self.btn_agendar   = _btn("🕐  Agendar Limpeza Automática", self.abrir_scheduler_dialog)
 
         for btn in (self.btn_geral, self.btn_net, self.btn_cache,
