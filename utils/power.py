@@ -173,7 +173,8 @@ def _limpar_planos_duplicados(planos, nomes_padroes, manter_guid=None):
     Returns:
         Tuple[int, list[str]]: quantidade removida e lista de GUIDs removidos.
     """
-    candidatos = [(guid, nome) for guid, nome in planos if any(p in nome.lower() for p in nomes_padroes)]
+    
+    candidatos = [(guid, _normalizar(nome)) for guid, nome in planos if any(p in nome for p in nomes_padroes)]
     if len(candidatos) <= 1:
         return 0, []
 
@@ -247,7 +248,7 @@ def _salvar_plano_original_se_necessario(guid_atual):
         _salvar_estado_gclean(dados)
 
 
-def restaurar_plano_energia_original():
+def restaurar_plano_energia():
     """Restaura o plano de energia que estava ativo antes da primeira vez que
     o GClean alterou as configurações de energia.
 
@@ -268,7 +269,7 @@ def restaurar_plano_energia_original():
         return False, f"Falha ao restaurar plano original ({e.__class__.__name__})"
 
 
-def _ajustar_plano_energia():
+def ajustar_plano_energia():
     """Tenta ativar o melhor plano de energia disponível, em ordem de prioridade:
 
     1. Desempenho Máximo (Ultimate Performance) — template oculto da Microsoft
@@ -324,13 +325,6 @@ def _ajustar_plano_energia():
         # Salva o plano original em disco antes de qualquer troca.
         # Só grava se ainda não existir (mantém o plano "verdadeiro" do usuário,
         # não o plano do GCleaner de uma execução anterior).
-        try:
-            if guid_original and not os.path.exists(_ARQ_PLANO_ORIGINAL):
-                os.makedirs(_PASTA_APP, exist_ok=True)
-                with open(_ARQ_PLANO_ORIGINAL, 'w') as f:
-                    f.write(guid_original)
-        except OSError as e:
-            logging.warning("Não foi possível salvar o plano original: %s", e)
 
         # --- Desempenho Máximo: busca por nome antes de duplicar de novo ---
         guid_existente = _buscar_guid_por_nome(planos, NOMES_MAXIMO)
@@ -384,7 +378,8 @@ def limpar_planos_duplicados():
 
         for guid, nome in planos:
             nome_l = nome.lower()
-            if any(p in nome_l for p in NOMES_MAXIMO):
+            nome_norm = _normalizar(nome)
+            if any(p in nome_norm for p in NOMES_MAXIMO):
                 grupos["maximo"].append((guid, nome))
             elif any(p in nome_l for p in NOMES_ALTO):
                 grupos["alto"].append((guid, nome))
@@ -406,27 +401,3 @@ def limpar_planos_duplicados():
         return True, f"{deletados} plano(s) duplicado(s) removido(s)"
     except Exception as e:
         return False, f"Falha ao limpar planos duplicados ({e.__class__.__name__})"
-
-
-def restaurar_plano_energia():
-    """Restaura o plano de energia que estava ativo antes do GCleaner alterar.
-
-    O GUID original é salvo em %LOCALAPPDATA%\\GCleaner\\plano_original.txt na
-    primeira vez que o sysoptimize é executado. Este arquivo persiste entre
-    sessões, então o usuário pode restaurar mesmo após reiniciar o app.
-
-    Returns:
-        Tuple[bool, str]
-    """
-    try:
-        if not os.path.exists(_ARQ_PLANO_ORIGINAL):
-            return False, "Nenhum plano original salvo — rode 'Otimizar Sistema' ao menos uma vez"
-        with open(_ARQ_PLANO_ORIGINAL, 'r') as f:
-            guid = f.read().strip()
-        if not guid:
-            return False, "Arquivo de plano original está vazio"
-        if _tentar_ativar_plano(guid):
-            return True, f"Plano original restaurado ({guid})"
-        return False, f"Não foi possível ativar o plano salvo ({guid}) — pode ter sido deletado"
-    except Exception as e:
-        return False, f"Falha ao restaurar plano ({e.__class__.__name__})"

@@ -4,13 +4,11 @@ import time
 
 def DeleteArquivos(caminho):
     """Deleta arquivos ou subdiretórios de forma segura sem derrubar a pasta raiz."""
-    try:
-        if os.path.isfile(caminho) or os.path.islink(caminho):
-            os.remove(caminho)
-        elif os.path.isdir(caminho):
-            shutil.rmtree(caminho, ignore_errors=True)
-    except Exception:
-        raise
+    if os.path.isfile(caminho) or os.path.islink(caminho):
+        os.remove(caminho)
+    elif os.path.isdir(caminho):
+        shutil.rmtree(caminho, ignore_errors=True)
+
 
 
 def cachetempclean(progressAtt, simulacao=False):

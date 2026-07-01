@@ -3,7 +3,7 @@ import os
 import time
 import ctypes
 from .cache import DeleteArquivos
-from .power import _ajustar_plano_energia, limpar_planos_duplicados
+from .power import ajustar_plano_energia, limpar_planos_duplicados
 
 try:
     import psutil
@@ -175,6 +175,31 @@ def _liberar_memoria_sistema():
     except Exception as e:
         return False, f"Falha ao liberar memória ({e.__class__.__name__})"
 
+def _limpar_componentes_windows():
+    """Executa DISM para limpar componentes antigos do WinSxS.
+
+    É a operação que mais libera espaço em disco em máquinas que acumularam
+    muitas atualizações — pode devolver vários GBs. Demora mais que as outras
+    etapas (o timeout é generoso), e exige privilégios de Administrador.
+
+    Returns:
+        Tuple[bool, str]
+    """
+    try:
+        resultado = subprocess.run(
+            ['dism', '/Online', '/Cleanup-Image', '/StartComponentCleanup'],
+            capture_output=True, text=True, shell=True, timeout=600
+        )
+        if resultado.returncode == 0:
+            return True, "Componentes WinSxS limpos com sucesso"
+        # DISM retorna 3010 quando precisa de reinicialização (ainda é sucesso)
+        if resultado.returncode == 3010:
+            return True, "WinSxS limpo — reinicie o PC para concluir"
+        return False, f"DISM retornou código {resultado.returncode}"
+    except subprocess.TimeoutExpired:
+        return False, "DISM excedeu o tempo limite (10 min) — rode manualmente como Administrador"
+    except Exception as e:
+        return False, f"Falha no DISM ({e.__class__.__name__})"
 
 def sysoptimize(progressAtt, simulacao=False):
     """Faz a otimização real do sistema.
@@ -208,7 +233,7 @@ def sysoptimize(progressAtt, simulacao=False):
     progressAtt(0.05)
     time.sleep(0.1)
 
-    sucesso, detalhe = _ajustar_plano_energia()
+    sucesso, detalhe = ajustar_plano_energia()
     resultados.append(("Plano de energia", sucesso, detalhe))
     progressAtt(0.15)
 
@@ -240,33 +265,3 @@ def sysoptimize(progressAtt, simulacao=False):
     progressAtt(0)
     return resultados
 
-
-# ===========================================================================
-# Funções públicas novas
-# ===========================================================================
-
-def _limpar_componentes_windows():
-    """Executa DISM para limpar componentes antigos do WinSxS.
-
-    É a operação que mais libera espaço em disco em máquinas que acumularam
-    muitas atualizações — pode devolver vários GBs. Demora mais que as outras
-    etapas (o timeout é generoso), e exige privilégios de Administrador.
-
-    Returns:
-        Tuple[bool, str]
-    """
-    try:
-        resultado = subprocess.run(
-            ['dism', '/Online', '/Cleanup-Image', '/StartComponentCleanup'],
-            capture_output=True, text=True, shell=True, timeout=600
-        )
-        if resultado.returncode == 0:
-            return True, "Componentes WinSxS limpos com sucesso"
-        # DISM retorna 3010 quando precisa de reinicialização (ainda é sucesso)
-        if resultado.returncode == 3010:
-            return True, "WinSxS limpo — reinicie o PC para concluir"
-        return False, f"DISM retornou código {resultado.returncode}"
-    except subprocess.TimeoutExpired:
-        return False, "DISM excedeu o tempo limite (10 min) — rode manualmente como Administrador"
-    except Exception as e:
-        return False, f"Falha no DISM ({e.__class__.__name__})"
