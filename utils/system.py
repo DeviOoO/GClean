@@ -185,18 +185,36 @@ def _limpar_componentes_windows():
     Returns:
         Tuple[bool, str]
     """
+    # IMPORTANTE: shell=True fazia o DISM rodar como "neto" do processo Python
+    # (via cmd.exe). Quando o timeout estourava, o subprocess.run só matava o
+    # cmd.exe — o dism.exe/TrustedInstaller continuava vivo segurando o pipe
+    # de stdout aberto, e a chamada de limpeza interna do Windows (que roda
+    # sem timeout algum) travava para sempre esperando o pipe fechar. Isso
+    # era o "loading eterno" da Limpeza Geral. Sem shell=True o DISM já é o
+    # processo filho direto, então o taskkill /T abaixo consegue encerrá-lo
+    # de verdade quando o timeout expira.
+    processo = None
     try:
-        resultado = subprocess.run(
+        processo = subprocess.Popen(
             ['dism', '/Online', '/Cleanup-Image', '/StartComponentCleanup'],
-            capture_output=True, text=True, shell=True, timeout=600
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
-        if resultado.returncode == 0:
+        stdout, _ = processo.communicate(timeout=600)
+        if processo.returncode == 0:
             return True, "Componentes WinSxS limpos com sucesso"
         # DISM retorna 3010 quando precisa de reinicialização (ainda é sucesso)
-        if resultado.returncode == 3010:
+        if processo.returncode == 3010:
             return True, "WinSxS limpo — reinicie o PC para concluir"
-        return False, f"DISM retornou código {resultado.returncode}"
+        return False, f"DISM retornou código {processo.returncode}"
     except subprocess.TimeoutExpired:
+        if processo is not None:
+            # Mata a árvore inteira de processos (/T) — não só o dism.exe,
+            # mas qualquer worker que ele tenha gerado — para liberar os
+            # pipes e não travar o communicate() de limpeza interno.
+            subprocess.run(
+                ['taskkill', '/F', '/T', '/PID', str(processo.pid)],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
         return False, "DISM excedeu o tempo limite (10 min) — rode manualmente como Administrador"
     except Exception as e:
         return False, f"Falha no DISM ({e.__class__.__name__})"
